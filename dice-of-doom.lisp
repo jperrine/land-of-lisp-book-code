@@ -1,6 +1,7 @@
+(load "lazy-eval")
 (defparameter *num-players* 2)
 (defparameter *max-dice* 3)
-(defparameter *board-size* 3)
+(defparameter *board-size* 4)
 (defparameter *board-hexnum* (* *board-size* *board-size*))
 
 (defun board-array (lst)
@@ -23,12 +24,6 @@
 												for hex = (aref board (+ x (* *board-size* y)))
 												do (format t "~a-~a " (player-letter (first hex))
 																							(second hex))))))
-
-(let ((old-game-tree (symbol-function 'game-tree))
-			(previous (make-hash-table :test #'equalp)))
-	(defun game-tree (&rest rest)
-		(or (gethash rest previous)
-			(setf (gethash rest previous) (apply old-game-tree rest)))))
 																			
 (defun game-tree (board player spare-dice first-move)
 	(list player
@@ -38,7 +33,13 @@
 													spare-dice
 													first-move
 													(attacking-moves board player spare-dice))))
-													
+
+(let ((old-game-tree (symbol-function 'game-tree))
+			(previous (make-hash-table :test #'equalp)))
+	(defun game-tree (&rest rest)
+		(or (gethash rest previous)
+			(setf (gethash rest previous) (apply old-game-tree rest)))))
+
 (defun add-passing-move (board player spare-dice first-move moves)
 	(if first-move
 			moves
@@ -69,13 +70,6 @@
             (loop for n below *board-hexnum*
                   collect n))))
 
-
-(let ((old-neighbors (symbol-function 'neighbors))
-			(previous (make-hash-table)))
-	(defun neighbors (pos)
-		(or (gethash pos previous)
-				(setf (gethash pos previous) (funcall old-neighbors pos)))))
-
 (defun neighbors (pos)
 	(let ((up (- pos *board-size*))
 				(down (+ pos *board-size*)))
@@ -86,6 +80,12 @@
 															(list (1+ pos) (1+ pos))))
 					      when (and (>= p 0) (< p *board-hexnum*))
 					      collect p)))
+					
+(let ((old-neighbors (symbol-function 'neighbors))
+			(previous (make-hash-table)))
+	(defun neighbors (pos)
+		(or (gethash pos previous)
+				(setf (gethash pos previous) (funcall old-neighbors pos)))))
 					
 (defun board-attack (board player src dst dice)
 	(board-array (loop for pos
@@ -153,16 +153,6 @@
 				(format t "The game is a tie between ~a" (mapcar #'player-letter w))
 				(format t "The winner is ~a" (player-letter (car w))))))
 
-(let ((old-rate-position (symbol-function 'rate-position))
-			(previous (make-hash-table)))
-	(defun rate-position (tree player)
-		(let ((tab (gethash player previous)))
-			(unless tab
-				(setf tab (setf (gethash player previous) (make-hash-table))))
-			(or (gethash tree tab)
-					(setf (gethash tree tab)
-								(funcall old-rate-position tree player))))))
-
 (defun rate-position (tree player)
 	(let ((moves (caddr tree)))
 		(if moves
@@ -174,6 +164,16 @@
 					(if (member player w)
 							(/ 1 (length w))
 						0)))))
+						
+(let ((old-rate-position (symbol-function 'rate-position))
+			(previous (make-hash-table)))
+	(defun rate-position (tree player)
+		(let ((tab (gethash player previous)))
+			(unless tab
+				(setf tab (setf (gethash player previous) (make-hash-table))))
+			(or (gethash tree tab)
+					(setf (gethash tree tab)
+								(funcall old-rate-position tree player))))))
 
 (defun get-ratings (tree player)
 	(mapcar (lambda (move)
